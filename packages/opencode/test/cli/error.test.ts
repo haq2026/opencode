@@ -99,12 +99,18 @@ describe("cli.error", () => {
       expect(FormatError({ _tag: "CliError", message: "something broke", exitCode: 3 })).toBe("something broke")
       expect(process.exitCode).toBe(3)
     } finally {
-      process.exitCode = previous
+      process.exitCode = previous ?? 0
     }
+    expect(process.exitCode).toBe(previous ?? 0)
   })
 
   test("formats CLI errors without a message as empty output", () => {
-    expect(FormatError({ _tag: "CliError" })).toBe("")
+    const previous = process.exitCode
+    try {
+      expect(FormatError({ _tag: "CliError" })).toBe("")
+    } finally {
+      process.exitCode = previous ?? 0
+    }
   })
 
   test("formats remote config auth errors with a login hint", () => {
