@@ -92,4 +92,55 @@ describe("cli.error", () => {
   test("formats cancelled UI errors as empty output", () => {
     expect(FormatError(new UI.CancelledError())).toBe("")
   })
+
+  test("formats CLI errors and applies their exit code", () => {
+    const previous = process.exitCode
+    try {
+      expect(FormatError({ _tag: "CliError", message: "something broke", exitCode: 3 })).toBe("something broke")
+      expect(process.exitCode).toBe(3)
+    } finally {
+      process.exitCode = previous
+    }
+  })
+
+  test("formats CLI errors without a message as empty output", () => {
+    expect(FormatError({ _tag: "CliError" })).toBe("")
+  })
+
+  test("formats remote config auth errors with a login hint", () => {
+    const data = { url: "https://config.example.com", remote: "team-config" }
+    const expected = [
+      "Failed to load remote config from team-config: the server returned a login page instead of JSON.",
+      "Authentication is missing or has expired (the endpoint is likely behind an SSO or identity-aware proxy).",
+      "Run `opencode auth login https://config.example.com` to re-authenticate.",
+    ].join("\n")
+
+    expect(FormatError({ name: "ConfigRemoteAuthError", data })).toBe(expected)
+    expect(FormatError({ _tag: "ConfigRemoteAuthError", ...data })).toBe(expected)
+  })
+
+  test("formats remote config auth errors without a url", () => {
+    const expected = [
+      "Failed to load remote config: the server returned a login page instead of JSON.",
+      "Authentication is missing or has expired (the endpoint is likely behind an SSO or identity-aware proxy).",
+    ].join("\n")
+
+    expect(FormatError({ _tag: "ConfigRemoteAuthError" })).toBe(expected)
+  })
+
+  test("formats config invalid errors with no path and no issues", () => {
+    expect(FormatError({ _tag: "ConfigInvalidError", path: "config" })).toBe("Configuration is invalid")
+  })
+
+  test("unwraps errors nested under cause.body", () => {
+    const wrapped = new Error("outer", { cause: { body: { _tag: "ProviderInitError", providerID: "anthropic" } } })
+
+    expect(FormatError(wrapped)).toBe('Failed to initialize provider "anthropic". Check credentials and configuration.')
+  })
+
+  test("returns undefined for errors it does not recognize", () => {
+    expect(FormatError({ _tag: "SomethingElse", message: "nope" })).toBeUndefined()
+    expect(FormatError("just a string")).toBeUndefined()
+    expect(FormatError(undefined)).toBeUndefined()
+  })
 })
